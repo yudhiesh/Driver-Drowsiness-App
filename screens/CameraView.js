@@ -76,10 +76,20 @@ export default function CameraView() {
     }
     // Make predictions.
     const preds = prediction.dataSync();
-    console.log(preds);
+    let awareness = "";
     preds.forEach((pred, i) => {
       //console.log(`x: ${i}, pred: ${pred}`);
-      if (pred > 0.95) {
+      if (pred > 0.9) {
+        if (i === 0) {
+          awareness = "0";
+        }
+        if (i === 1) {
+          awareness = "10";
+        }
+        if (i === 2) {
+          awareness = "5";
+        }
+        console.log(`Awareness level ${awareness} Probability : ${pred}`);
         setModelPrediction({ prediction: pred, class_: i });
       }
     });
@@ -127,17 +137,10 @@ export default function CameraView() {
     return model;
   };
 
-  // Show the prediction above the buttons
-  const showPrediction = () => {
-    return (
-      <View>
-        {
-          <View>
-            <Text>{modelPrediction}</Text>
-          </View>
-        }
-      </View>
-    );
+  const outputPrediction = () => {
+    modelPrediction.map((pred, i) => {
+      console.log(`Awareness Level ${i} Probability ${pred}`);
+    });
   };
 
   if (hasPermission === null) {
