@@ -1,5 +1,10 @@
 import { StyleSheet } from "react-native";
 
+const previewLeft = 40;
+const previewTop = 50;
+const previewWidth = 350;
+const previewHeight = 600;
+
 export default StyleSheet.create({
   screenContainer: {
     flex: 1,
@@ -28,7 +33,7 @@ export default StyleSheet.create({
     textTransform: "uppercase",
     padding: 20,
     position: "absolute",
-    top: 5,
+    top: 5
   },
   container: {
     flex: 1,
@@ -42,7 +47,7 @@ export default StyleSheet.create({
     justifyContent: "space-around",
     alignItems: "stretch",
     position: "absolute",
-    bottom: 20,
+    bottom: 20
   },
   appButtonText2: {
     fontSize: 20,
@@ -55,13 +60,39 @@ export default StyleSheet.create({
     position: "absolute",
     top: 100
   },
+  predictionContainer: {
+    margin: 30,
+    fontSize: 30,
+    color: "black",
+    fontWeight: "bold",
+    bottom: 40
+  },
   modelButtonContainer: {
     margin: 30,
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "stretch",
     position: "absolute",
-    bottom: 20,
+    bottom: 20
+  },
+  cameraContainer: {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
+    height: "60%",
+    backgroundColor: "#fff"
+  },
+  camera: {
+    position: "absolute",
+    left: previewLeft,
+    top: previewTop,
+    width: previewWidth,
+    height: previewHeight,
+    zIndex: 1,
+    borderWidth: 1,
+    borderColor: "black",
+    borderRadius: 0
   }
-
 });
