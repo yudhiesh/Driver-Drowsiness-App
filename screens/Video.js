@@ -1,11 +1,8 @@
 import * as React from "react";
 import { StyleSheet, Button, Text, View } from "react-native";
-import * as tf from "@tensorflow/tfjs"
-import {fetch} from "@tensorflow-models/mobilenet"
+import * as tf from "@tensorflow/tfjs";
 
 import styles from "../styles/style.js";
-
-
 
 function Video({ navigation }) {
   return (
@@ -17,11 +14,11 @@ function Video({ navigation }) {
         Please keep the camera close to your face for accurate model predictions
       </Text>
       <View style={styles.buttonContainer}>
-      <Button
-        title="Start Driving!"
-        color="green"
-        onPress={()=> navigation.navigate("VideoScreen")}
-      />
+        <Button
+          title="Start Driving!"
+          color="green"
+          onPress={() => navigation.navigate("VideoScreen")}
+        />
       </View>
     </View>
   );

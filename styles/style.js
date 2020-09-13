@@ -6,6 +6,11 @@ const previewWidth = 350;
 const previewHeight = 600;
 
 export default StyleSheet.create({
+  header: {
+    height: Platform.OS === "ios" ? 90 : 50,
+    paddingTop: Platform.OS === "ios" ? 40 : 0,
+    paddingBottom: Platform.OS === "ios" ? 0 : 0
+  },
   screenContainer: {
     flex: 1,
     justifyContent: "center",
@@ -34,6 +39,12 @@ export default StyleSheet.create({
     padding: 20,
     position: "absolute",
     top: 5
+  },
+  bbox: {
+    position: "absolute",
+    borderWidth: 2,
+    borderColor: "red",
+    borderRadius: 1
   },
   container: {
     flex: 1,
@@ -66,6 +77,12 @@ export default StyleSheet.create({
     color: "black",
     fontWeight: "bold",
     bottom: 40
+  },
+  faceDebug: {
+    fontSize: 20,
+    color: "black",
+    fontWeight: "bold",
+    bottom: 50
   },
   modelButtonContainer: {
     margin: 30,
