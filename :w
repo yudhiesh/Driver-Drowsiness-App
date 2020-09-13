@@ -16,32 +16,26 @@ import styles from "../styles/style";
 // Tensor Camera replaces Expo Camera
 const TensorCamera = cameraWithTensors(Camera);
 
-// Disable errors on client app
+// Disable errors on client app 
 console.disableYellowBox = true;
 
+
 export default function CameraView() {
-  // Variables to make constant predictions on the input frame
   let requestAnimationFrameId = 0;
   let frameCount = 0;
   let makePredictionsEveryNFrames = 5;
 
   const AUTORENDER = true;
 
-  //Loading model from models folder
-  const modelJSON = require("../model/model.json");
-  const modelWeights = require("../model/group1-shard1of1.bin");
-
-  // Camera view parameters
+  // Camera view paramaters
   const previewLeft = 40;
   const previewTop = 50;
   const previewWidth = 350;
   const previewHeight = 600;
-
-  // Size of the Tensors
+  // Size of the Tensors 
   // Fixed to 224,224,3 for input into custom model
   const tensorDims = { height: 224, width: 224, depth: 3 };
 
-  // State
   const [hasPermission, setHasPermission] = useState(null);
   const [blazeFaceModel, setBlazeFaceModel] = useState(null);
   const [textureDimsState, setTextureDims] = useState();
@@ -52,6 +46,8 @@ export default function CameraView() {
   const [loadedModel, setModelLoaded] = useState(null);
   const [modelPrediction, setModelPrediction] = useState("");
   const [predictionFound, setPredictionFound] = useState(false);
+  const modelJSON = require("../model/model.json");
+  const modelWeights = require("../model/group1-shard1of1.bin");
 
   useEffect(() => {
     if (!isTFReady) {
@@ -82,11 +78,7 @@ export default function CameraView() {
   // Run unMount for cancelling animation if it is running to avoid leaks
   useEffect(() => {
     return () => {
-      try {
-        cancelAnimationFrame(requestAnimationFrameId);
-      } catch (e) {
-        console.log("Error cancelling animation!");
-      }
+      cancelAnimationFrame(requestAnimationFrameId);
     };
   }, [requestAnimationFrameId]);
 
@@ -110,8 +102,6 @@ export default function CameraView() {
       .catch(e => console.log(e));
     console.log(faces);
     //const tensors = Object.values(faces[0]);
-
-    // Faces is an array of objects
     if (!isEmpty(faces)) {
       setModelFaces({ faces });
     }
