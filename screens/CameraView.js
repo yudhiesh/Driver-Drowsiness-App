@@ -23,7 +23,7 @@ export default function CameraView() {
   // Variables to make constant predictions on the input frame
   let requestAnimationFrameId = 0;
   let frameCount = 0;
-  let makePredictionsEveryNFrames = 5;
+  let makePredictionsEveryNFrames = 3;
 
   const AUTORENDER = true;
 
@@ -82,11 +82,7 @@ export default function CameraView() {
   // Run unMount for cancelling animation if it is running to avoid leaks
   useEffect(() => {
     return () => {
-      try {
-        cancelAnimationFrame(requestAnimationFrameId);
-      } catch (e) {
-        console.log("Error cancelling animation!");
-      }
+      cancelAnimationFrame(requestAnimationFrameId);
     };
   }, [requestAnimationFrameId]);
 
@@ -108,42 +104,49 @@ export default function CameraView() {
     const faces = await bfModel
       .estimateFaces(tensor, returnTensors)
       .catch(e => console.log(e));
-    console.log(faces);
-    //const tensors = Object.values(faces[0]);
+    const tensorReshaped = tensor.reshape([1, 224, 224, 3]);
+    const scale = {
+      height: styles.camera.height / tensorDims.height,
+      width: styles.camera.width / tensorDims.width
+    };
 
     // Faces is an array of objects
     if (!isEmpty(faces)) {
       setModelFaces({ faces });
+      faces.map((face, i) => {
+        const { topLeft, bottomRight } = face;
+        const width = Math.floor(
+          bottomRight.dataSync()[0] - topLeft.dataSync()[0] * scale.width
+        );
+        const height = Math.floor(
+          bottomRight.dataSync()[1] - topLeft.dataSync()[1] * scale.height
+        );
+        const boxes = tf
+          .concat([topLeft.dataSync(), bottomRight.dataSync()])
+          .reshape([-1, 4]);
+        const crop = tf.image.cropAndResize(
+          tensorReshaped,
+          boxes,
+          [0],
+          [height, width]
+        );
+        // Resize cropped faces to [1,224,224,3]
+        const alignCorners = false;
+        const imageResize = tf.image.resizeBilinear(
+          crop,
+          [224, 224],
+          alignCorners
+        );
+        if (!isEmpty(imageResize)) {
+          const prediction = model.predict(imageResize);
+          if (!prediction || isEmpty(prediction)) {
+            console.log("Prediction not available");
+          }
+          const preds = prediction.dataSync();
+          console.log(preds);
+        }
+      });
     }
-    //console.log("Output at each face");
-    //tensors.map(t => console.log(`Output ${t}`));
-
-    //const prediction = model.predict(tensor.reshape([1, 224, 224, 3]));
-    //if (!prediction || prediction.length === 0) {
-    //  console.log("No prediction available");
-    //  return;
-    //}
-    //// Make predictions.
-    //const preds = prediction.dataSync();
-    //let awareness = "";
-    //preds.forEach((pred, i) => {
-    //  //console.log(`x: ${i}, pred: ${pred}`);
-    //  if (pred > 0.9) {
-    //    if (i === 0) {
-    //      awareness = "0";
-    //    }
-    //    if (i === 1) {
-    //      awareness = "10";
-    //    }
-    //    if (i === 2) {
-    //      awareness = "5";
-    //    }
-    //    console.log(`Awareness level ${awareness} Probability : ${pred}`);
-    //    setModelPrediction({ prediction: pred, class_: i });
-    //  }
-    //});
-
-    // Only take the predictions with a probability of 30% and greater //Stop looping
     cancelAnimationFrame(requestAnimationFrameId);
     //setPredictionFound(true);
     //setModelPrediction(prediction[0].className);
@@ -165,7 +168,7 @@ export default function CameraView() {
           //console.log("Tensor input 2");
           //tf.print(imageTensor, verbose);
           await getPrediction(imageTensor).catch(e => console.log(e));
-          imageTensor.dispose();
+          tf.dispose(imageAsTensors);
         }
       }
 
@@ -176,6 +179,10 @@ export default function CameraView() {
     //loop infinitely to constantly make predictions
     loop();
   };
+  const makePrediction = async (model, imageTensor) => {
+    return await model.predict(imageTensor);
+  };
+
   const renderBoundingBoxes = () => {
     const { faces } = modelFaces;
     const scale = {
@@ -198,8 +205,7 @@ export default function CameraView() {
             (bottomRight.dataSync()[1] - topLeft.dataSync()[1]) * scale.height
         });
 
-        return <View style={boxStyle}></View>;
-        1;
+        return <View style={boxStyle} key={`faces${i}}`}></View>;
       });
     }
   };
@@ -212,8 +218,8 @@ export default function CameraView() {
 
         return (
           <Text style={styles.faceDebug} key={`faceInfo${i}`}>
-            probability: {probability.dataSync()[0].toFixed(3)} | Top Left: [
-            {topLeft.dataSync()[0].toFixed(1)},{" "}
+            Probability of being a face: {probability.dataSync()[0].toFixed(3)}{" "}
+            | Top Left: [{topLeft.dataSync()[0].toFixed(1)},{" "}
             {topLeft.dataSync()[1].toFixed(1)}] | Bottom Right: [
             {bottomRight.dataSync()[0].toFixed(1)},{" "}
             {bottomRight.dataSync()[1].toFixed(1)}]
@@ -248,50 +254,21 @@ export default function CameraView() {
   }
 
   return (
-    <View>
+    <View style={styles.cameraContainer}>
       <TensorCamera
         style={styles.camera}
         type={type}
+        zoom={0}
         cameraTextureHeight={textureDimsState.height}
         cameraTextureWidth={textureDimsState.width}
         resizeHeight={tensorDims.height}
         resizeWidth={tensorDims.width}
         resizeDepth={tensorDims.depth}
-        onReady={handleCameraStream}
+        onReady={images => handleCameraStream(images)}
         autorender={AUTORENDER}
       />
       {renderBoundingBoxes()}
       {renderFacesDebugInfo()}
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: "transparent",
-          flexDirection: "row",
-          justifyContent: "center"
-        }}
-      >
-        <View>
-          <Text>
-            Tensorflow.js {tf.version.tfjs} is:
-            {isTFReady ? " READY" : " LOADING"}
-            {isTFReady && ` and using backend: ${tf.getBackend()}`}
-          </Text>
-        </View>
-        <View style={styles.modelButtonContainer}>
-          <Button
-            title="Flip Screen"
-            color="black"
-            style={styles.appButtonText2}
-            onPress={() => {
-              setType(
-                type === Camera.Constants.Type.back
-                  ? Camera.Constants.Type.front
-                  : Camera.Constants.Type.back
-              );
-            }}
-          />
-        </View>
-      </View>
     </View>
   );
 }

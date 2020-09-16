@@ -19,8 +19,24 @@ TODO :
 #9. Detect faces using BlazeFace model
 #10. Draw bounding boxes on face
 
+CHANGE:
+Need to use MobileNet for face detection
+BlazeFace Model uses a (128,128,3) input whereas Mobilenet has the same input shape as the custom model
+EDIT:
+So I needed to just resize the width and height of the cropped image
+Now model is not making predictions asynchronously
+Split the code so that it is easier to read
+Code for cropping the image takes up a lot of space
+
 11. Bounding boxes are getting drawn on the screen behind the camera and not the camera input
 12. Fix CSS of the button layout, camera feed, tfready output and face prediction probability
+13. From the faces stored in state crop out the faces
+14. Store the cropped faces
+15. Send the cropped faces to the custom model
+16. Output prediction
+17. Model prediction class name = [0,10, 5]
+18. Store predictions in a queue
+19. Average the predictions over K predictions
 
 Output
 Bottom right: 40.03703689575195,58.5428466796875

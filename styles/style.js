@@ -1,10 +1,9 @@
 import { StyleSheet } from "react-native";
 
 const previewLeft = 40;
-const previewTop = 50;
+const previewTop = 60;
 const previewWidth = 350;
-const previewHeight = 600;
-
+const previewHeight = 500;
 export default StyleSheet.create({
   header: {
     height: Platform.OS === "ios" ? 90 : 50,
@@ -79,10 +78,13 @@ export default StyleSheet.create({
     bottom: 40
   },
   faceDebug: {
-    fontSize: 20,
+    fontSize: 15,
     color: "black",
     fontWeight: "bold",
-    bottom: 50
+    bottom: 200,
+    alignSelf: "center",
+    textAlign: "center",
+    position: "relative"
   },
   modelButtonContainer: {
     margin: 30,
