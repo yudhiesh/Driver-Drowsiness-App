@@ -23,7 +23,8 @@ export default function CameraView() {
   // Variables to make constant predictions on the input frame
   let requestAnimationFrameId = 0;
   let frameCount = 0;
-  let makePredictionsEveryNFrames = 3;
+  let makePredictionsEveryNFrames = 1;
+  let queueSize = 0;
 
   const AUTORENDER = true;
 
@@ -51,7 +52,11 @@ export default function CameraView() {
   const [isTFReady, setTFReady] = useState(false);
   const [loadedModel, setModelLoaded] = useState(null);
   const [modelPrediction, setModelPrediction] = useState();
-  const [predictionFound, setPredictionFound] = useState(false);
+  const [allPredictions, setAllPredictions] = useState({
+    "0": [],
+    "5": [],
+    "10": []
+  });
 
   useEffect(() => {
     (async () => {
@@ -149,7 +154,7 @@ export default function CameraView() {
     if (!prediction || isEmpty(prediction)) {
       console.log("Prediction not available");
     }
-    console.log(prediction.dataSync());
+    rollingPrediction(prediction.dataSync());
   };
 
   // Get the argMax at each frame
@@ -163,6 +168,70 @@ export default function CameraView() {
 
   // Handling the camera input and converting it into tensors to be used in the
   // model for predictions
+  const rollingPrediction = arr => {
+    const { max, maxIndex } = indexOfMax(arr);
+    const maxFixed = parseFloat(max.toFixed(2));
+    if (maxIndex === 0) {
+      allPredictions["0"].push(maxFixed);
+      queueSize += 1;
+    } else if (maxIndex === 1) {
+      allPredictions["10"].push(maxFixed);
+      queueSize += 1;
+    } else if (maxIndex === 2) {
+      allPredictions["5"].push(maxFixed);
+      queueSize += 1;
+    }
+    console.log(`Queue : ${queueSize}`);
+    if (queueSize > 4) {
+      console.log("Queue Size Max");
+      const arr1 = allPredictions["0"].length;
+      const arr2 = allPredictions["5"].length;
+      const arr3 = allPredictions["10"].length;
+
+      if (arr1 > arr2 && arr3) {
+        const sum = sumOfArray(allPredictions["0"]);
+        const prob = sum / arr1;
+        console.log(`Awareness level 0 | Probability: ${prob}`);
+      } else if (arr2 > arr1 && arr3) {
+        const sum = sumOfArray(allPredictions["5"]);
+        const prob = sum / arr2;
+        console.log(`Awareness level 5 | Probability: ${prob}`);
+      } else if (arr3 > arr2 && arr1) {
+        const sum = sumOfArray(allPredictions["10"]);
+        const prob = sum / arr3;
+        console.log(`Awareness level 10 | Probability: ${prob}`);
+      } else {
+        console.log("No rolling prediction");
+      }
+      queueSize = 0;
+      allPredictions["0"] = [];
+      allPredictions["5"] = [];
+      allPredictions["10"] = [];
+    }
+  };
+
+  const sumOfArray = arr => {
+    return arr.reduce((a, i) => a + i, 0);
+  };
+
+  const indexOfMax = arr => {
+    if (arr.length === 0) {
+      return -1;
+    }
+    let max = arr[0];
+    let maxIndex = 0;
+
+    for (let i = 0; i < arr.length; i++) {
+      if (arr[i] > max) {
+        max = arr[i];
+        maxIndex = i;
+      }
+    }
+    return {
+      max,
+      maxIndex
+    };
+  };
 
   const handleCameraStream = imageAsTensors => {
     if (!imageAsTensors) {
