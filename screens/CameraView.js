@@ -50,33 +50,31 @@ export default function CameraView() {
   const [modelFaces, setModelFaces] = useState([]);
   const [isTFReady, setTFReady] = useState(false);
   const [loadedModel, setModelLoaded] = useState(null);
-  const [modelPrediction, setModelPrediction] = useState("");
+  const [modelPrediction, setModelPrediction] = useState();
   const [predictionFound, setPredictionFound] = useState(false);
 
   useEffect(() => {
-    if (!isTFReady) {
-      (async () => {
-        try {
-          const { status } = await Camera.requestPermissionsAsync().catch(e =>
-            console.log(e)
-          );
-          if (Platform.OS == "ios") {
-            setTextureDims({ height: 1920, width: 1080 });
-          } else {
-            setTextureDims({ height: 1200, width: 1600 });
-          }
-          setHasPermission(status === "granted");
-          await tf.ready().catch(e => console.log(e));
-          setTFReady(true);
-          setModelLoaded(await loadModel());
-          setBlazeFaceModel(
-            await loadBlazeFaceModel().catch(e => console.log(e))
-          );
-        } catch (e) {
-          console.log("Error in 1st useEffect()");
+    (async () => {
+      try {
+        const { status } = await Camera.requestPermissionsAsync().catch(e =>
+          console.log(e)
+        );
+        if (Platform.OS == "ios") {
+          setTextureDims({ height: 1920, width: 1080 });
+        } else {
+          setTextureDims({ height: 1200, width: 1600 });
         }
-      })();
-    }
+        setHasPermission(status === "granted");
+        await tf.ready().catch(e => console.log(e));
+        setTFReady(true);
+        setModelLoaded(await loadModel().catch(e => console.log(e)));
+        setBlazeFaceModel(
+          await loadBlazeFaceModel().catch(e => console.log(e))
+        );
+      } catch (e) {
+        console.log("Error in 1st useEffect()");
+      }
+    })();
   }, []);
 
   // Run unMount for cancelling animation if it is running to avoid leaks
@@ -96,15 +94,12 @@ export default function CameraView() {
   const getPrediction = async tensor => {
     if (!tensor) {
       console.log("Tensor not found!");
-      return;
     }
-    const model = await loadedModel;
     const bfModel = await blazeFaceModel;
     const returnTensors = true;
     const faces = await bfModel
       .estimateFaces(tensor, returnTensors)
       .catch(e => console.log(e));
-    const tensorReshaped = tensor.reshape([1, 224, 224, 3]);
     const scale = {
       height: styles.camera.height / tensorDims.height,
       width: styles.camera.width / tensorDims.width
@@ -113,63 +108,74 @@ export default function CameraView() {
     // Faces is an array of objects
     if (!isEmpty(faces)) {
       setModelFaces({ faces });
-      faces.map((face, i) => {
-        const { topLeft, bottomRight } = face;
-        const width = Math.floor(
-          bottomRight.dataSync()[0] - topLeft.dataSync()[0] * scale.width
-        );
-        const height = Math.floor(
-          bottomRight.dataSync()[1] - topLeft.dataSync()[1] * scale.height
-        );
-        const boxes = tf
-          .concat([topLeft.dataSync(), bottomRight.dataSync()])
-          .reshape([-1, 4]);
-        const crop = tf.image.cropAndResize(
-          tensorReshaped,
-          boxes,
-          [0],
-          [height, width]
-        );
-        // Resize cropped faces to [1,224,224,3]
-        const alignCorners = false;
-        const imageResize = tf.image.resizeBilinear(
-          crop,
-          [224, 224],
-          alignCorners
-        );
-        if (!isEmpty(imageResize)) {
-          const prediction = model.predict(imageResize);
-          if (!prediction || isEmpty(prediction)) {
-            console.log("Prediction not available");
-          }
-          const preds = prediction.dataSync();
-          console.log(preds);
-        }
-      });
     }
-    cancelAnimationFrame(requestAnimationFrameId);
-    //setPredictionFound(true);
-    //setModelPrediction(prediction[0].className);
+    faces.map((face, i) => {
+      const { topLeft, bottomRight } = face;
+      // Boxes in cropAndResize require to be normalized
+      const normTopLeft = topLeft.div(tensor.shape.slice(-3, -2));
+      const normBottomRight = bottomRight.div(tensor.shape.slice(-3, -2));
+      const width = Math.floor(
+        bottomRight.dataSync()[0] - topLeft.dataSync()[0] * scale.width
+      );
+      const height = Math.floor(
+        bottomRight.dataSync()[1] - topLeft.dataSync()[1] * scale.height
+      );
+      const boxes = tf
+        .concat([normTopLeft.dataSync(), normBottomRight.dataSync()])
+        .reshape([-1, 4]);
+      tf.norm(boxes);
+      const crop = tf.image.cropAndResize(
+        tensor.reshape([1, 224, 224, 3]),
+        boxes,
+        [0],
+        [height, width]
+      );
+      // Resize cropped faces to [1,224,224,3]
+      const alignCorners = true;
+      const imageResize = tf.image.resizeBilinear(
+        crop,
+        [224, 224],
+        alignCorners
+      );
+      makePrediction(imageResize);
+    });
   };
+  const makePrediction = async image => {
+    if (!image) {
+      console.log("No input!");
+    }
+    const model = await loadedModel;
+    const prediction = await model.predict(image, { batchSize: 1 });
+    if (!prediction || isEmpty(prediction)) {
+      console.log("Prediction not available");
+    }
+    console.log(prediction.dataSync());
+  };
+
+  // Get the argMax at each frame
+  // Store the class
+  // Keep a count of each class and its resulting probability
+  // Once the total count of the classes object reaches K
+  // Select the argMax of the classes object
+  // Probability of that class is the sum of all probability for argMax class divided by the len(total probability of argMax class)
+  // That is the prediction
+  // Set the state to be empty
 
   // Handling the camera input and converting it into tensors to be used in the
   // model for predictions
+
   const handleCameraStream = imageAsTensors => {
-    const verbose = true;
-    //console.log("Tensor input 1");
     if (!imageAsTensors) {
       console.log("Image not found!");
-      return;
     }
     const loop = async () => {
-      if (loadedModel !== null && blazeFaceModel !== null) {
-        if (frameCount % makePredictionsEveryNFrames === 0) {
-          const imageTensor = imageAsTensors.next().value;
-          //console.log("Tensor input 2");
-          //tf.print(imageTensor, verbose);
+      if (frameCount % makePredictionsEveryNFrames === 0) {
+        const imageTensor = imageAsTensors.next().value;
+
+        if (loadedModel !== null && blazeFaceModel !== null) {
           await getPrediction(imageTensor).catch(e => console.log(e));
-          tf.dispose(imageAsTensors);
         }
+        tf.dispose(imageAsTensors);
       }
 
       frameCount += 1;
@@ -178,9 +184,6 @@ export default function CameraView() {
     };
     //loop infinitely to constantly make predictions
     loop();
-  };
-  const makePrediction = async (model, imageTensor) => {
-    return await model.predict(imageTensor);
   };
 
   const renderBoundingBoxes = () => {
@@ -264,7 +267,7 @@ export default function CameraView() {
         resizeHeight={tensorDims.height}
         resizeWidth={tensorDims.width}
         resizeDepth={tensorDims.depth}
-        onReady={images => handleCameraStream(images)}
+        onReady={handleCameraStream}
         autorender={AUTORENDER}
       />
       {renderBoundingBoxes()}

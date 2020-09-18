@@ -1,6 +1,6 @@
 import * as React from "react";
 import { StyleSheet, Text, View, Button } from "react-native";
-import styles from "../styles/style.js"
+import styles from "../styles/style.js";
 
 export default function HomeScreen({ navigation }) {
   return (
