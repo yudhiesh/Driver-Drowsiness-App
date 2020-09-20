@@ -25,3 +25,4 @@ TODO :
 
 14. Output prediction below camera
 15. Add button for start that refreshes the screen
+16. Add style for both Output Prediction and Face Detection Prediction

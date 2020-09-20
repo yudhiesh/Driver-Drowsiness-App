@@ -11,6 +11,8 @@ import {
   bundleResourceIO
 } from "@tensorflow/tfjs-react-native";
 
+// Helper functions
+import { indexOfMax, sumOfArray } from "../helper/HelperFunction";
 import styles from "../styles/style";
 
 // Tensor Camera replaces Expo Camera
@@ -157,6 +159,30 @@ export default function CameraView() {
     rollingPrediction(prediction.dataSync());
   };
 
+  // Handling the camera input and converting it into tensors to be used in the
+  // model for predictions
+  const handleCameraStream = imageAsTensors => {
+    if (!imageAsTensors) {
+      console.log("Image not found!");
+    }
+    const loop = async () => {
+      if (frameCount % makePredictionsEveryNFrames === 0) {
+        const imageTensor = imageAsTensors.next().value;
+
+        if (loadedModel !== null && blazeFaceModel !== null) {
+          await getPrediction(imageTensor).catch(e => console.log(e));
+        }
+        tf.dispose(imageAsTensors);
+      }
+
+      frameCount += 1;
+      frameCount = frameCount % makePredictionsEveryNFrames;
+      requestAnimationFrameId = requestAnimationFrame(loop);
+    };
+    //loop infinitely to constantly make predictions
+    loop();
+  };
+
   // Get the argMax at each frame
   // Store the class
   // Keep a count of each class and its resulting probability
@@ -166,8 +192,6 @@ export default function CameraView() {
   // That is the prediction
   // Set the state to be empty
 
-  // Handling the camera input and converting it into tensors to be used in the
-  // model for predictions
   const rollingPrediction = arr => {
     const { max, maxIndex } = indexOfMax(arr);
     const maxFixed = parseFloat(max.toFixed(2));
@@ -209,52 +233,6 @@ export default function CameraView() {
       allPredictions["10"] = [];
     }
   };
-
-  const sumOfArray = arr => {
-    return arr.reduce((a, i) => a + i, 0);
-  };
-
-  const indexOfMax = arr => {
-    if (arr.length === 0) {
-      return -1;
-    }
-    let max = arr[0];
-    let maxIndex = 0;
-
-    for (let i = 0; i < arr.length; i++) {
-      if (arr[i] > max) {
-        max = arr[i];
-        maxIndex = i;
-      }
-    }
-    return {
-      max,
-      maxIndex
-    };
-  };
-
-  const handleCameraStream = imageAsTensors => {
-    if (!imageAsTensors) {
-      console.log("Image not found!");
-    }
-    const loop = async () => {
-      if (frameCount % makePredictionsEveryNFrames === 0) {
-        const imageTensor = imageAsTensors.next().value;
-
-        if (loadedModel !== null && blazeFaceModel !== null) {
-          await getPrediction(imageTensor).catch(e => console.log(e));
-        }
-        tf.dispose(imageAsTensors);
-      }
-
-      frameCount += 1;
-      frameCount = frameCount % makePredictionsEveryNFrames;
-      requestAnimationFrameId = requestAnimationFrame(loop);
-    };
-    //loop infinitely to constantly make predictions
-    loop();
-  };
-
   const renderBoundingBoxes = () => {
     const { faces } = modelFaces;
     const scale = {
