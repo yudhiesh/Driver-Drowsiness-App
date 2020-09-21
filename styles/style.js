@@ -52,12 +52,24 @@ export default StyleSheet.create({
     justifyContent: "center"
   },
   buttonContainer: {
-    margin: 30,
-    flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "stretch",
     position: "absolute",
-    bottom: 20
+    bottom: 30
+  },
+  buttonContainer2: {
+    justifyContent: "space-around",
+    alignItems: "stretch",
+    alignSelf: "center",
+    position: "absolute",
+    bottom: -250
+  },
+  pContainer: {
+    justifyContent: "space-around",
+    alignItems: "stretch",
+    position: "absolute",
+    alignSelf: "center",
+    bottom: -150
   },
   appButtonText2: {
     fontSize: 20,
@@ -77,11 +89,29 @@ export default StyleSheet.create({
     fontWeight: "bold",
     bottom: 40
   },
+  awarenessText: {
+    fontSize: 13,
+    color: "black",
+    fontWeight: "bold",
+    bottom: -300,
+    alignSelf: "center",
+    textAlign: "center",
+    position: "relative"
+  },
   faceDebug: {
+    fontSize: 13,
+    color: "black",
+    fontWeight: "bold",
+    bottom: -280,
+    alignSelf: "center",
+    textAlign: "center",
+    position: "relative"
+  },
+  predictionOutput: {
     fontSize: 15,
     color: "black",
     fontWeight: "bold",
-    bottom: 200,
+    top: 300,
     alignSelf: "center",
     textAlign: "center",
     position: "relative"

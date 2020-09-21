@@ -54,6 +54,9 @@ export default function CameraView() {
   const [isTFReady, setTFReady] = useState(false);
   const [loadedModel, setModelLoaded] = useState(null);
   const [modelPrediction, setModelPrediction] = useState();
+  const [frameWorkReady, setFrameWorkReady] = useState(false);
+  const [finalPrediction, setFinalPrediction] = useState();
+  const [predictionReady, setPredictionReady] = useState(false);
   const [allPredictions, setAllPredictions] = useState({
     "0": [],
     "5": [],
@@ -61,8 +64,8 @@ export default function CameraView() {
   });
 
   useEffect(() => {
-    (async () => {
-      try {
+    if (!frameWorkReady) {
+      (async () => {
         const { status } = await Camera.requestPermissionsAsync().catch(e =>
           console.log(e)
         );
@@ -78,10 +81,9 @@ export default function CameraView() {
         setBlazeFaceModel(
           await loadBlazeFaceModel().catch(e => console.log(e))
         );
-      } catch (e) {
-        console.log("Error in 1st useEffect()");
-      }
-    })();
+        setFrameWorkReady(true);
+      })();
+    }
   }, []);
 
   // Run unMount for cancelling animation if it is running to avoid leaks
@@ -115,37 +117,36 @@ export default function CameraView() {
     // Faces is an array of objects
     if (!isEmpty(faces)) {
       setModelFaces({ faces });
+      faces.map((face, i) => {
+        const { topLeft, bottomRight } = face;
+        // Boxes in cropAndResize require to be normalized
+        const normTopLeft = topLeft.div(tensor.shape.slice(-3, -2));
+        const normBottomRight = bottomRight.div(tensor.shape.slice(-3, -2));
+        const width = Math.floor(
+          bottomRight.dataSync()[0] - topLeft.dataSync()[0] * scale.width
+        );
+        const height = Math.floor(
+          bottomRight.dataSync()[1] - topLeft.dataSync()[1] * scale.height
+        );
+        const boxes = tf
+          .concat([normTopLeft.dataSync(), normBottomRight.dataSync()])
+          .reshape([-1, 4]);
+        const crop = tf.image.cropAndResize(
+          tensor.reshape([1, 224, 224, 3]),
+          boxes,
+          [0],
+          [height, width]
+        );
+        // Resize cropped faces to [1,224,224,3]
+        const alignCorners = true;
+        const imageResize = tf.image.resizeBilinear(
+          crop,
+          [224, 224],
+          alignCorners
+        );
+        makePrediction(imageResize);
+      });
     }
-    faces.map((face, i) => {
-      const { topLeft, bottomRight } = face;
-      // Boxes in cropAndResize require to be normalized
-      const normTopLeft = topLeft.div(tensor.shape.slice(-3, -2));
-      const normBottomRight = bottomRight.div(tensor.shape.slice(-3, -2));
-      const width = Math.floor(
-        bottomRight.dataSync()[0] - topLeft.dataSync()[0] * scale.width
-      );
-      const height = Math.floor(
-        bottomRight.dataSync()[1] - topLeft.dataSync()[1] * scale.height
-      );
-      const boxes = tf
-        .concat([normTopLeft.dataSync(), normBottomRight.dataSync()])
-        .reshape([-1, 4]);
-      tf.norm(boxes);
-      const crop = tf.image.cropAndResize(
-        tensor.reshape([1, 224, 224, 3]),
-        boxes,
-        [0],
-        [height, width]
-      );
-      // Resize cropped faces to [1,224,224,3]
-      const alignCorners = true;
-      const imageResize = tf.image.resizeBilinear(
-        crop,
-        [224, 224],
-        alignCorners
-      );
-      makePrediction(imageResize);
-    });
   };
   const makePrediction = async image => {
     if (!image) {
@@ -205,27 +206,30 @@ export default function CameraView() {
       allPredictions["5"].push(maxFixed);
       queueSize += 1;
     }
-    console.log(`Queue : ${queueSize}`);
-    if (queueSize > 4) {
+    if (queueSize > 9) {
       console.log("Queue Size Max");
       const arr1 = allPredictions["0"].length;
       const arr2 = allPredictions["5"].length;
       const arr3 = allPredictions["10"].length;
 
-      if (arr1 > arr2 && arr3) {
+      console.log(allPredictions);
+      if (arr1 > arr2 && arr1 > arr3) {
         const sum = sumOfArray(allPredictions["0"]);
         const prob = sum / arr1;
-        console.log(`Awareness level 0 | Probability: ${prob}`);
-      } else if (arr2 > arr1 && arr3) {
+        setFinalPrediction({ probability: prob, awarenessLevel: 0 });
+        setPredictionReady(true);
+      } else if (arr2 > arr1 && arr2 > arr3) {
         const sum = sumOfArray(allPredictions["5"]);
         const prob = sum / arr2;
-        console.log(`Awareness level 5 | Probability: ${prob}`);
-      } else if (arr3 > arr2 && arr1) {
+        setFinalPrediction({ probability: prob, awarenessLevel: 5 });
+        setPredictionReady(true);
+      } else if (arr3 > arr2 && arr3 > arr1) {
         const sum = sumOfArray(allPredictions["10"]);
         const prob = sum / arr3;
-        console.log(`Awareness level 10 | Probability: ${prob}`);
+        setFinalPrediction({ probability: prob, awarenessLevel: 10 });
+        setPredictionReady(true);
       } else {
-        console.log("No rolling prediction");
+        console.log("No Rolling Prediction");
       }
       queueSize = 0;
       allPredictions["0"] = [];
@@ -233,6 +237,19 @@ export default function CameraView() {
       allPredictions["10"] = [];
     }
   };
+  const predictionAvailable = () => {
+    const { probability, awarenessLevel } = finalPrediction;
+    return (
+      <Text style={styles.awarenessText}>
+        Awareness Level :{awarenessLevel} Probability :{probability.toFixed(2)}
+      </Text>
+    );
+  };
+
+  const noPrediction = () => {
+    return <Text style={styles.awarenessText}>No prediction available</Text>;
+  };
+
   const renderBoundingBoxes = () => {
     const { faces } = modelFaces;
     const scale = {
@@ -254,7 +271,6 @@ export default function CameraView() {
           height:
             (bottomRight.dataSync()[1] - topLeft.dataSync()[1]) * scale.height
         });
-
         return <View style={boxStyle} key={`faces${i}}`}></View>;
       });
     }
@@ -304,21 +320,30 @@ export default function CameraView() {
   }
 
   return (
-    <View style={styles.cameraContainer}>
-      <TensorCamera
-        style={styles.camera}
-        type={type}
-        zoom={0}
-        cameraTextureHeight={textureDimsState.height}
-        cameraTextureWidth={textureDimsState.width}
-        resizeHeight={tensorDims.height}
-        resizeWidth={tensorDims.width}
-        resizeDepth={tensorDims.depth}
-        onReady={handleCameraStream}
-        autorender={AUTORENDER}
-      />
-      {renderBoundingBoxes()}
-      {renderFacesDebugInfo()}
+    <View>
+      <View style={styles.cameraContainer}>
+        <TensorCamera
+          style={styles.camera}
+          type={type}
+          zoom={0}
+          cameraTextureHeight={textureDimsState.height}
+          cameraTextureWidth={textureDimsState.width}
+          resizeHeight={tensorDims.height}
+          resizeWidth={tensorDims.width}
+          resizeDepth={tensorDims.depth}
+          onReady={imageAsTensors => handleCameraStream(imageAsTensors)}
+          autorender={AUTORENDER}
+        />
+      </View>
+      <View>{renderFacesDebugInfo()}</View>
+      <View>
+        {predictionReady && finalPrediction
+          ? predictionAvailable()
+          : noPrediction()}
+      </View>
+      <View style={styles.buttonContainer2}>
+        <Button title="Start!" color="green" />
+      </View>
     </View>
   );
 }
