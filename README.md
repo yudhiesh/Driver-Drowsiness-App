@@ -1,28 +1,13 @@
-TODO :
+## Mobile Application for Driver Awareness Detection using Deep Learning 
 
-9 September 2020
+1. Tensor is sent to BlazeFace Model for face detection 
+2. If face is detected the face is cropped based on the bounding boxes 
+3. Cropped faces are resized to fit the custom model (1,224,224,3)
+4. Awareness detection is performed on the cropped and resized face. 
 
-#1. Home Screen DONE
-#2. Video Screen DONE
-#3. Camera View :
+### Awareness Level 10
+![Awareness Level 10](https://drive.google.com/uc?export=view&id=1xEqBA5LHMBXpz385cDBKLbNsnPhBl9j0)
 
-#1. Load model
-#2. Check if loading of model is done
-#3. If loading is done then display a pop up
+### Awareness Level 0
+![Awareness Level 0](https://drive.google.com/uc?export=view&id=1Q9eSEb2y6V5d_dIs0G_9CnqoPkO6NjJ-)
 
-#4. Start button will be attached to the model to make predictions
-#5. Prediction function will take input from the camera and convert it to frames
-#6. Each frame is passed through the model
-#7. Model Prediction View will be showing the model predictions for each class and the confidence it has
-#8. Stop model will stop the model making predictions
-
-#9. Detect faces using BlazeFace model
-#10. Draw bounding boxes on face
-
-#11. Crop faces
-#12. Send cropped faces to custom model
-#13. Make rolling predictions over K frames
-
-14. Output prediction below camera
-15. Add button for start that refreshes the screen
-16. Add style for both Output Prediction and Face Detection Prediction
